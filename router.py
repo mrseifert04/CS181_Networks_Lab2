@@ -143,27 +143,28 @@ class Router:
     #         # print(f"New distance from {data[0]}: {data[1]}")
     #         return
 
-    def handle_incoming_update(self, socket):
-        # use recvfrom in udp socket
-        data, address = socket.recvfrom(1024)
-        data = data.decode()
+    # def handle_incoming_update(self, socket):
+    #     while True:
+    #         # use recvfrom in udp socket
+    #         data, address = socket.recvfrom(1024)
+    #         data = data.decode()
 
-        # check if we just want to update a link cost
-        if (data.split()[0] == "link"):
-            data = data.split()
-            self.update_cost(int(data[1]), int(data[2]))
-            
-        # or if we need are receiving a distance vector update
-        else: 
-            data = eval(data) # bytes to dict
-            print(f"Received distance vector update: {data} from {address}")
+    #         # check if we just want to update a link cost
+    #         if (data.split()[0] == "link"):
+    #             data = data.split()
+    #             self.update_cost(int(data[1]), int(data[2]))
+                
+    #         # or if we need are receiving a distance vector update
+    #         else: 
+    #             data = eval(data) # bytes to dict
+    #             print(f"Received distance vector update: {data} from {address}")
 
-            print("IN HANDLER, data keys are", data.keys())
-            for dest in data.keys():
-                print("IN HANDLER, checking dest", dest)
-                self.bellman_ford_update(dest, data)
+    #             print("IN HANDLER, data keys are", data.keys())
+    #             for dest in data.keys():
+    #                 print("IN HANDLER, checking dest", dest)
+    #                 self.bellman_ford_update(dest, data)
 
-            print("HANDLER FINISHED")
+    #             print("HANDLER FINISHED")
 
         # for neighbor_id in self.cost_table.keys():
         #     if neighbor_id in data.keys(): # TODO CHECK THIS
@@ -173,51 +174,65 @@ class Router:
 
 
     def handle_incoming_update(self, socket):
-        # use recvfrom in udp socket
-        data, address = socket.recvfrom(1024)
-        # decode the received data to string and print out
-        data = eval(data.decode()) # bytes to dict
-        print(f"Received distance vector update: {data} from Router {data["id"]}")
-        print("IN HANDLER, data keys are", data.keys())
+        while True:
+            # use recvfrom in udp socket
+            data, address = socket.recvfrom(1024)
+            data = data.decode()
 
-        for destination_id in data.keys():
-    
-            if destination_id == "id":
-                # used only to send the sender's own ID
-                continue 
-            elif destination_id == self.router_id:
-
-                # # when sender A sends to recipient B, A's distance to B is 
-                # communicated as B's distance to A
-               
-                # cost measured by recipient
-                current_cost = self.cost_table.get(data["id"], float('inf'))
-                print("distance measured by recipient is", current_cost)
-                # cost measured by sender
-                cost_via_neighbor = data[self.router_id]
-                print("distance measured by recipient is", cost_via_neighbor)
-
-                # no changes to hops for this one
-                self.cost_table[data["id"]] = min(current_cost, cost_via_neighbor)
-                self.routing_table[data["id"]]["cost"] = min(current_cost, cost_via_neighbor)
-
+            # check if we just want to update a link cost
+            if (data.split()[0] == "link"):
+                data = data.split()
+                self.update_cost(int(data[1]), int(data[2]))
+                
+            # or if we need are receiving a distance vector update
             else:
-    
-                current_cost = self.cost_table.get(destination_id, float('inf'))
-                print("current cost is", current_cost)
-                cost_via_neighbor = self.cost_table.get(data["id"]) + data[destination_id]
-                print("to neighbor is", self.cost_table.get(data["id"]))
-                print("from neighbor to dest is", data[destination_id])
-                print("total via neighbor is", cost_via_neighbor)
+                # decode the received data to string and print out
+                data = eval(data) # bytes to dict
+                print(f"Received distance vector update: {data} from Router {data["id"]}")
+                print("IN HANDLER, data keys are", data.keys())
 
-                if cost_via_neighbor < current_cost:
-                    self.cost_table[destination_id] = cost_via_neighbor
-                    self.routing_table[destination_id] = {
-                        "next_hop": data["id"],
-                        "cost": cost_via_neighbor,
-                        "ip, port": self.neighbor_ip_port_table.get(data["id"], ("", 0))
-                    }
-                    print(f"Routing table from {self.router_id}")
+                for destination_id in data.keys():
+            
+                    if destination_id == "id":
+                        # used only to send the sender's own ID
+                        continue 
+                    elif destination_id == self.router_id:
+
+                        # # when sender A sends to recipient B, A's distance to B is 
+                        # communicated as B's distance to A
+                    
+                        # cost measured by recipient
+                        current_cost = self.cost_table.get(data["id"], float('inf'))
+                        print("distance measured by recipient is", current_cost)
+                        # cost measured by sender
+                        cost_via_neighbor = data[self.router_id]
+                        print("distance measured by recipient is", cost_via_neighbor)
+
+                        # no changes to hops for this one
+                        self.cost_table[data["id"]] = min(current_cost, cost_via_neighbor)
+                      
+                        self.routing_table[data["id"]]["cost"] = min(current_cost, cost_via_neighbor)
+
+                    else:
+                        
+                        current_cost = self.cost_table.get(destination_id, float('inf'))
+                        print("current cost is", current_cost)
+                        cost_via_neighbor = self.cost_table.get(data["id"]) + data[destination_id]
+                        print("to neighbor is", self.cost_table.get(data["id"]))
+                        print("from neighbor to dest is", data[destination_id])
+                        print("total via neighbor is", cost_via_neighbor)
+
+                        if cost_via_neighbor < current_cost:
+                            self.cost_table[destination_id] = cost_via_neighbor
+                            self.routing_table[destination_id] = {
+                                "next_hop": data["id"],
+                                "cost": cost_via_neighbor,
+                                "ip, port": self.neighbor_ip_port_table.get(data["id"], ("", 0))
+                            }
+                            # print(f"Routing table from {self.router_id}")
+                            print(f"By BF, updated route from {self.router_id} to {destination_id} through {data["id"]}")
+                      
+                        print(f"Current cost {current_cost} vs via-neighbor cost {cost_via_neighbor}.")
                           
         
     # def bellman_ford_update(self, neighbor_id, neighbor_dv):
