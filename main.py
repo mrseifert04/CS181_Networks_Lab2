@@ -26,8 +26,6 @@ def initialize_router(filepath):
 
 #         #check for updates
 
-        
-
 def user_input_handler(myrouter):
 
     while(True):
@@ -36,24 +34,34 @@ def user_input_handler(myrouter):
         if user_input[0:6] == "update":
             # <server1-id> <server1-id> <new_cost>
             args = user_input.split()
-        # try:
-            myrouter.update_cost(int(args[1]), int(args[3]))
-        # except:
-        #     print("update Error updating cost.")
-        #     continue
+            server1_id = int(args[1])
+            server2_id = int(args[2])
+            new_cost = int(args[3])
+            try: 
+                if (server1_id == myrouter.router_id):
+                    myrouter.update_cost(server2_id, new_cost)
+                    myrouter.send_neighbor_update(server2_id, new_cost)
+                elif (server2_id == myrouter.router_id):
+                    myrouter.update_cost(server1_id, new_cost)
+                    myrouter.send_neighbor_update(server1_id, new_cost)
+                else:
+                    myrouter.send_link_update(server1_id, server2_id, new_cost)
+            except:
+                print("update Error updating cost.")
+                continue
             print("update SUCCESS")
 
         elif user_input == "step":
-        #try:
+            # try:
             myrouter.send_updates_to_all_neighbors()
-        #except:
-            # print("step Error sending router update.")
-            # continue
-            print("step SUCCESS")
+            # except:
+            #     print("step Error sending router update.")
+            #     continue
+            # print("step SUCCESS")
 
         elif user_input == "packets":
             try:
-                packets = myrouter.get_num_packets_sent()
+                packets = myrouter.INSERTPACKETVARHERE #todo
                 print("Total packets sent: ", packets)
             except:
                 print("packets Error retrieving packet count.")
@@ -68,24 +76,30 @@ def user_input_handler(myrouter):
                 continue
             print("display SUCCESS")
 
-        elif user_input[0:6] == "disable":
+        elif user_input[0:7] == "disable":
             args = user_input.split()
+            neighbor_id = int(args[1])
             try:
-                myrouter.remove_route(int(args[1]))
+                if (myrouter.is_neighbor(neighbor_id)):
+                    myrouter.update_cost(neighbor_id, float('inf'))
+                    myrouter.send_neighbor_update(neighbor_id, float('inf'))
+                else:
+                    print("disable Error: Server is not a neighbor")
+                
             except:
-                print("disable Error disabling link.")
+                print("disable Error disabling link")
                 continue
             print("disable SUCCESS")
 
         elif user_input == "crash":
             try:
-                for i in myrouter.num_neighbors:
-                    myrouter.remove_route(myrouter.neighbor_ids[i])
+                for neighbor in myrouter.neighbor_ip_port_table.keys():
+                    myrouter.update_cost(neighbor, float('inf'))
+                    myrouter.send_neighbor_update(neighbor, float('inf'))
             except:
-                print("crash Error crashing router.")
+                print("crash Error failed to crash router")
                 continue
             print("crash SUCCESS")
-            exit()
 
         else:
             print("Invalid input. Please try again.")
@@ -93,8 +107,6 @@ def user_input_handler(myrouter):
         pass
 
 def main():
-
-   
 
     # Get server configuration from user
     while(True):
@@ -109,18 +121,20 @@ def main():
             continue
 
     myrouter = initialize_router(topology_file)
+
+    # start listening for updates
     listening_thread = threading.Thread(target=myrouter.handle_incoming_update, args=(myrouter.listening_socket,))
-    
-    # Start listening thread
-    # listening_thread = threading.Thread(target=handle_connection, args=(myrouter.listening_socket,))
     listening_thread.start()
+
+    # # start sending periodic updates
+    # update_thread = threading.Thread(target=myrouter.send_periodic_updates, args=(routing_update_interval,))
+    # update_thread.start()
 
     # Start user input thread
     input_thread = threading.Thread(target=user_input_handler, args=(myrouter,))
     input_thread.start()
+    input_thread.join()
 
-    while(input_thread.is_alive()):
-        pass
     exit()
 
 main()
