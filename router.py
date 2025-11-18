@@ -92,7 +92,8 @@ class Router:
             self.cost_table[neighbor_id] = new_cost
             self.update_routing_table()
         else:
-            print(f"Neighbor {neighbor_id} not found.")
+            pass
+    
 
     def display(self):
         print(f"Routing Table for Router {self.router_id}:")
@@ -156,14 +157,13 @@ class Router:
                 if (cost == 'inf'):
                     self.update_cost(neighbor_id, float(cost))
                 else:
-                    self.update_cost(neighbor_id, float(cost))
+                    self.update_cost(neighbor_id, int(cost))
                 
             # or if we need are receiving a distance vector update
             else:
                 data = data.replace("inf", "float('inf')")
                 data = eval(data) # bytes to dict
                 # decode the received data to string and print out
-                print("data received is", data)
         
                 
                 print(f"RECEIVED A MESSAGE FROM SERVER {data["id"]}")
@@ -189,7 +189,7 @@ class Router:
                         self.cost_table[data["id"]] = min(current_cost, cost_via_neighbor)
                       
                         self.routing_table[data["id"]]["cost"] = min(current_cost, cost_via_neighbor)
-                        print(f"Current cost {current_cost} vs via-neighbor cost {cost_via_neighbor}. No reroute.")
+                        # print(f"Current cost {current_cost} vs via-neighbor cost {cost_via_neighbor}. No reroute.")
 
                     else:
                         
@@ -207,7 +207,8 @@ class Router:
                             print(f"Current cost {current_cost} vs via-neighbor cost {cost_via_neighbor}. Rerouted through {data["id"]}.")
                       
                         else:
-                            print(f"Current cost {current_cost} vs via-neighbor cost {cost_via_neighbor}. No reroute.")
+                            pass
+                            # print(f"Current cost {current_cost} vs via-neighbor cost {cost_via_neighbor}. No reroute.")
            
 
           
