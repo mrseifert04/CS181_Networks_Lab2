@@ -92,30 +92,23 @@ class Router:
             cost = self.routing_table[destination]["cost"]
             print(f"{destination}\t\t{next_hop}\t\t{cost}")
 
-    # def connect_to_neighbor(self, neighbor_id):
-    #     # Using sockets
-    #     if neighbor_id in self.neighbor_ip_port_table:
-    #         ip, port = self.neighbor_ip_port_table[neighbor_id]
-    #         print(f"Connecting to neighbor {neighbor_id} at {ip}:{port}")
-    #         # Here you would add the actual socket connection code
-    #         s = socket.socket()
-    #         s.connect((ip, port))
-    #         return s
 
-    #     else:
-    #         print(f"Neighbor {neighbor_id} not found.")
-
-    def send_single_update(self, neighbor_id, dv):
+    def send_single_update(self, neighbor_id):
         # sends DV to a single neighbor
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        while True:
-            # use sendto in udp socket using neighbor IP, port
-            dv = {}
-            for dest_id in self.routing_table.keys():
-                dv[dest_id] = self.routing_table[dest_id]["cost"]
-            s.sendto(dv.encode())
-            # use recvfrom in udp socket
-            s.close()
+        # use sendto in udp socket using neighbor IP, port
+        data = str(self.cost_table).encode()
+        print("type of data is ", type(data))
+        print("address is ", self.neighbor_ip_port_table[neighbor_id], "of type", type(self.neighbor_ip_port_table[neighbor_id]))
+        print("runnign sendto")
+        s.sendto(data, self.neighbor_ip_port_table[neighbor_id])
+        print("ran sendto complete")
+        s.close()
+
+    def send_updates_to_all_neighbors(self):
+        for neighbor_id in self.cost_table.keys():
+            print('sending to neighbor ', neighbor_id)
+            self.send_single_update(neighbor_id)
 
     def receive_single_update(self, connection):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -127,66 +120,75 @@ class Router:
             # print(f"New distance from {data[0]}: {data[1]}")
             return
 
-    def send_distance_updates(self):
-        # Sends distance updates to all neighbors
-        print("Sending distance vector update to neighbors...")
-        for neighbor_id in self.cost_table.keys():
-            # sock = self.connect_to_neighbor(neighbor_id)
-            # sock.send((str(neighbor_id), str(self.cost_table[neighbor_id])).encode())
-            # print(f"Sent distance {self.cost_table[neighbor_id]} to neighbor {neighbor_id}")
-            # return
-            self.send_single_update(neighbor_id, str(self.cost_table[neighbor_id]))  
-        
-    # def handle_distance_update(self, conn, addr):
-    #     # connection socket and address
-    #     # Placeholder for handling incoming connections
-    #     print(f"Handling connection from {addr}")
-    #     data = conn.recv(1024).decode()
-    #     data = data.split() # neighbor id, cost
-    #     self.cost_table[data[0]] = int(data[1])
-    #     print(f"New distance from {data[0]}: {data[1]}")
-    #     return
+    def handle_incoming_update(self, socket):
+        # use recvfrom in udp socket
+        data, address = socket.recvfrom(1024)
+        # decode the received data to string and print out
+        data = eval(data.decode()) # bytes to dict
+        print(f"Received distance vector update: {data} from {address}")
 
+        print("IN HANDLER, data keys are", data.keys())
+        for dest in data.keys():
+            print("IN HANDLER, checking dest", dest)
+            self.bellman_ford_update(dest, data)
 
-    # def add_route(self, destination, next_hop):
-    #     self.routing_table[destination] = next_hop
+        print("HANDLER FINISHED")
 
-    # def remove_route(self, destination):
-    #     if destination in self.routing_table:
-    #         del self.routing_table[destination]
-
-    # def get_next_hop(self, destination):
-    #     return self.routing_table.get(destination, None)
-
-    # def __str__(self):
-    #     return f"Router {self.router_id} Routing Table: {self.routing_table}"
+        # for neighbor_id in self.cost_table.keys():
+        #     if neighbor_id in data.keys(): # TODO CHECK THIS
+        #         self.bellman_ford_update(neighbor_id, data)
+        #     else:
+        #         print(f"Neighbor ID {neighbor_id} not in received distance vector.")
 
     def bellman_ford_update(self, neighbor_id, neighbor_dv):
         # Implement the Bellman-Ford algorithm to update routing table
         # neighbor_dv is a dict mapping destination IDs to costs from neighbor_id
-        update = False
-        dist_to_neighbor = neighbor_dv[self.router_id]
+        # update = False
+        # dist_to_neighbor = neighbor_dv[self.router_id]
 
-        ## Neighbor DV: {1: cost, 2: cost, ...}
-        
+
+        # Check distance to every destination via this neighbor
+        # Distance to this neighbor:
+        dist_to_neighbor = min(neighbor_dv[self.router_id], self.get_cost(neighbor_id))
+
+        # Distance looping through all the dests the neighbor knows about
         for dest_id in neighbor_dv.keys():
-            # distance to dest_id without going through neighbor
-            current_cost = self.cost_table.get(dest_id, float('inf'))
+            print("Checking dest_id ", dest_id, " via neighbor ", neighbor_id)
+            current_cost_to_dest = self.cost_table.get(dest_id, float('inf'))
+            cost_via_neighbor = dist_to_neighbor + neighbor_dv[dest_id]
 
-            # distance to dest_id via neighbor
-            cost_via_neighbor = neighbor_dv[self.router_id] + neighbor_dv[dest_id]
-
-            if cost_via_neighbor < current_cost:
+            if cost_via_neighbor < current_cost_to_dest:
                 self.cost_table[dest_id] = cost_via_neighbor
                 self.routing_table[dest_id] = {
                     "next_hop": neighbor_id,
                     "cost": cost_via_neighbor,
                     "ip, port": self.neighbor_ip_port_table.get(neighbor_id, ("", 0))
                 }
-                update = True\
+                print(f"Routing table from {self.router_id} to {dest_id} updated via neighbor {neighbor_id} from cost {current_cost_to_dest} to {cost_via_neighbor}")
+
+
+        # ## Neighbor DV: {1: cost, 2: cost, ...}
+        
+        # for dest_id in neighbor_dv.keys():
+        #     # distance to dest_id without going through neighbor
+        #     current_cost = self.cost_table.get(dest_id, float('inf'))
+
+        #     # distance to dest_id via neighbor
+        #     cost_via_neighbor = neighbor_dv[self.router_id] + neighbor_dv[dest_id]
+
+        #     if cost_via_neighbor < current_cost:
+        #         self.cost_table[dest_id] = cost_via_neighbor
+        #         self.routing_table[dest_id] = {
+        #             "next_hop": neighbor_id,
+        #             "cost": cost_via_neighbor,
+        #             "ip, port": self.neighbor_ip_port_table.get(neighbor_id, ("", 0))
+        #         }
+        #         update = True
             
-            if update:
-                print(f"Routing table to {dest_id} updated via neighbor {neighbor_id} from cost {current_cost} to {cost_via_neighbor}")
+        #     if update:
+        #         print(f"Routing table from {self.router_id} to {dest_id} \
+        #               updated via neighbor {neighbor_id} \
+        #               from cost {current_cost} to {cost_via_neighbor}")
 
           
 def main(): # run python3 router.py <router_id> <topology_file_path>

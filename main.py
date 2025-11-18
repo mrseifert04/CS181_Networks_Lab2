@@ -16,14 +16,15 @@ def initialize_router(filepath):
     myrouter.build_routing_table()
     return myrouter
 
-def handle_connection(socket):
-    while True:
-        # use recvfrom in udp socket
-        data, address = socket.recvfrom(1024)
-        # decode the received data to string and print out
-        message = data.decode()
+# def handle_connection(socket):
+#     while True:
+#         # use recvfrom in udp socket
+#         data, address = socket.recvfrom(1024)
+#         # decode the received data to string and print out
+#         message = data.decode()
+#         print(f"Received distance vector update: {data}")
 
-        #check for updates
+#         #check for updates
 
         
 
@@ -44,7 +45,7 @@ def user_input_handler(myrouter):
 
         elif user_input == "step":
         #try:
-            myrouter.send_routing_update()
+            myrouter.send_updates_to_all_neighbors()
         #except:
             # print("step Error sending router update.")
             # continue
@@ -108,9 +109,10 @@ def main():
             continue
 
     myrouter = initialize_router(topology_file)
+    listening_thread = threading.Thread(target=myrouter.handle_incoming_update, args=(myrouter.listening_socket,))
     
     # Start listening thread
-    listening_thread = threading.Thread(target=handle_connection, args=(myrouter.listening_socket,))
+    # listening_thread = threading.Thread(target=handle_connection, args=(myrouter.listening_socket,))
     listening_thread.start()
 
     # Start user input thread
