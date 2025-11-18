@@ -60,12 +60,13 @@ def user_input_handler(myrouter):
             # print("step SUCCESS")
 
         elif user_input == "packets":
-            try:
-                packets = myrouter.INSERTPACKETVARHERE #todo
-                print("Total packets sent: ", packets)
-            except:
-                print("packets Error retrieving packet count.")
-                continue
+        
+            packets = myrouter.packets_received
+            print("Total packets received since last packets command: ", packets)
+            myrouter.packets_received = 0 # reset when this command is invoked}
+            # except:
+            #     print("packets Error retrieving packet count.")
+            #     continue
             print("packets SUCCESS")
 
         elif user_input == "display":
@@ -78,8 +79,8 @@ def user_input_handler(myrouter):
 
         elif user_input[0:7] == "disable":
             args = user_input.split()
-            neighbor_id = int(args[1])
             try:
+                neighbor_id = int(args[1])
                 if (myrouter.is_neighbor(neighbor_id)):
                     myrouter.update_cost(neighbor_id, float('inf'))
                     myrouter.send_neighbor_update(neighbor_id, float('inf'))
@@ -126,9 +127,9 @@ def main():
     listening_thread = threading.Thread(target=myrouter.handle_incoming_update, args=(myrouter.listening_socket,))
     listening_thread.start()
 
-    # # start sending periodic updates
-    # update_thread = threading.Thread(target=myrouter.send_periodic_updates, args=(routing_update_interval,))
-    # update_thread.start()
+    # start sending periodic updates
+    update_thread = threading.Thread(target=myrouter.send_periodic_updates, args=(routing_update_interval,))
+    update_thread.start()
 
     # Start user input thread
     input_thread = threading.Thread(target=user_input_handler, args=(myrouter,))
@@ -142,4 +143,4 @@ main()
 
 
 # Example command to run the server with topology file and router ID
-# server -t topology1.txt -i 3
+# server -t topology1.txt -i 30
