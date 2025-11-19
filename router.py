@@ -11,6 +11,7 @@ class Router:
         self.listening_socket = None
         self.num_neighbors = 0
         self.packets_received = 0
+        self.online = True
 
     def set_server_port(self):
         self.server_port = self.neighbor_ip_port_table[self.router_id][1]
@@ -137,16 +138,17 @@ class Router:
 
     def send_periodic_updates(self, time_interval):
         import time
-        while True:
-            time.sleep(time_interval)
+        while self.online:
             self.send_updates_to_all_neighbors()
+            time.sleep(time_interval)
 
 
-    def handle_incoming_update(self, socket):
+    def handle_incoming_update(self):
         while True:
             # use recvfrom in udp socket
-            data, address = socket.recvfrom(1024)
+            data, address = self.listening_socket.recvfrom(1024)
             data = data.decode()
+            print(f"Router {self.router_id} received data: {data}")
 
 
             # check if we just want to update a link cost

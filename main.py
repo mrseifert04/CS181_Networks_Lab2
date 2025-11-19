@@ -97,6 +97,7 @@ def user_input_handler(myrouter):
                 for neighbor in myrouter.neighbor_ip_port_table.keys():
                     myrouter.update_cost(neighbor, float('inf'))
                     myrouter.send_neighbor_update(neighbor, float('inf'))
+                    myrouter.online = False
             except:
                 print("crash Error failed to crash router")
                 continue
@@ -124,7 +125,7 @@ def main():
     myrouter = initialize_router(topology_file)
 
     # start listening for updates
-    listening_thread = threading.Thread(target=myrouter.handle_incoming_update, args=(myrouter.listening_socket,))
+    listening_thread = threading.Thread(target=myrouter.handle_incoming_update, args=())
     listening_thread.start()
 
     # start sending periodic updates
